@@ -1,4 +1,4 @@
-package com.example.meteo_du_numerique
+package com.meteodunumerique
 
 import io.flutter.embedding.android.FlutterActivity
 

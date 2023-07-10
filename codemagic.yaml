@@ -9,7 +9,7 @@ workflows:
         - google_play
       vars:
         PACKAGE_NAME: "com.meteodunumerique"
-        GOOGLE_PLAY_TRACK: alpha
+        GOOGLE_PLAY_TRACK: internal
       flutter: stable
     scripts:
       - name: Set up local.properties

@@ -67,11 +67,11 @@
 // serviceColor(int qualiteDeServiceId) {
 //   switch (qualiteDeServiceId) {
 //     case 1:
-//       return Colors.green;
+//       return const Color(0xff04dc9a);
 //     case 2:
-//       return Colors.blueAccent;
+//       return const Color(0xffdd9e51);
 //     case 3:
-//       return Colors.redAccent;
+//       return const Color(0xffff3d71);
 //   }
 // }
 // }
@@ -83,11 +83,11 @@ import 'package:meteo_du_numerique/data/data_model.dart';
 serviceColor(int qualiteDeServiceId) {
   switch (qualiteDeServiceId) {
     case 1:
-      return Colors.green;
+      return const Color(0xff04dc9a);
     case 2:
-      return Colors.blueAccent;
+      return const Color(0xffdd9e51);
     case 3:
-      return Colors.redAccent;
+      return const Color(0xffff3d71);
   }
 }
 
@@ -172,7 +172,7 @@ class Tile extends StatelessWidget {
         Expanded(child: child),
         Container(
           height: bottomSpace,
-          color: Colors.green,
+          color: const Color(0xff04dc9a),
         )
       ],
     );

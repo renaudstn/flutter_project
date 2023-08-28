@@ -2,13 +2,22 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:diacritic/diacritic.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/adapters.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/date_symbol_data_custom.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
+import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:markdown/markdown.dart' hide Text;
+
 // import 'package:markdown/markdown.dart';
 import 'package:meteo_du_numerique/domain/repository.dart';
 
@@ -22,17 +31,34 @@ class Home extends StatefulWidget {
   State<Home> createState() => _HomeState();
 }
 
-class _HomeState extends State<Home> {
-  late Stream<String> _tokenStream;
-  late List<dynamic> services;
+class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
+  late List<Service> services;
+
+  DateTime? lastUpdate;
   final List<Service> _services = <Service>[];
   List<Service> _servicesDisplay = <Service>[];
 
-  late int _filterId;
+  late AnimationController _con;
+  late TextEditingController _textEditingController;
+  bool toggle = false;
+
+  bool fav = false;
+  bool fav2 = false;
+  bool fav3 = false;
+  bool fav4 = false;
+  bool disableSort = false;
 
   @override
   void initState() {
     super.initState();
+
+    initializeDateFormatting();
+
+    _textEditingController = TextEditingController();
+    _con = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 375),
+    );
 
     extents = List<int>.generate(10000, (int index) => rnd.nextInt(7) + 1);
 
@@ -46,10 +72,25 @@ class _HomeState extends State<Home> {
         //     .toList();
         // _servicesDisplay = filtered;
         _servicesDisplay = _services;
+
+        _servicesDisplay.sort((a, b) =>
+            removeDiacritics(a.libelle).compareTo(removeDiacritics(b.libelle)));
+
         _servicesDisplay.sort((a, b) =>
             b.qualite_de_service_id.compareTo(a.qualite_de_service_id));
+        //todo
+
+        lastUpdate = _services
+            .map((e) => e.lastUpdate)
+            .reduce((min, e) => e.isAfter(min) ? e : min);
       });
     });
+  }
+
+  @override
+  void dispose() {
+    // disposing states
+    super.dispose();
   }
 
   /// Create a [AndroidNotificationChannel] for heads up notifications
@@ -72,12 +113,12 @@ class _HomeState extends State<Home> {
   }
 
   Future<void> fetchservices() async {
-    String url = "https://www.toutatice.fr/strapi/services";
+    String url = "https://qt.toutatice.fr/strapi/api/services?populate=*";
+    // String url = "https://www.toutatice.fr/strapi/services";
     // String url = "$hostname/api/services";
     // String url = "http://127.0.0.1:1337/api/services";
     // String url = "http://172.29.222.125:1337/api/services";
     // String url = "http://10.0.2.2:1337/api/services";
-    var authToken = widget.box.get("authToken");
     Map<String, String> headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -89,16 +130,25 @@ class _HomeState extends State<Home> {
     });
   }
 
+  String lastUpdateString(DateTime lastUpdate) {
+    String form = DateFormat("dd MMMM yyyy", "fr_FR").format(lastUpdate);
+    String hour =
+        "${DateFormat("h").format(lastUpdate)}h${DateFormat("mm").format(lastUpdate)}";
+    return "Dernière mise à jour le $form à $hour";
+  }
+
   List<Service> filtered(int value) {
     return _services
         .where((service) => service.qualite_de_service_id == value)
         .toList();
   }
 
+  // DateTime lastUpdate = _services.reduce((value, element) => max(element.lastUpdate));
+
   static const List<Widget> icons = <Widget>[
-    Icon(Icons.sunny, color: Colors.green),
-    Icon(Icons.cloud, color: Colors.blueAccent),
-    Icon(Icons.flash_on, color: Colors.redAccent),
+    Icon(Icons.sunny, color: Color(0xff04dc9a)),
+    Icon(CupertinoIcons.umbrella_fill, color: Color(0xffdd9e51)),
+    Icon(Icons.flash_on, color: Color(0xffff3d71)),
   ];
 
   final List<bool> _selectedState = <bool>[false, false, true];
@@ -119,105 +169,418 @@ class _HomeState extends State<Home> {
 
     return Scaffold(
       appBar: AppBar(
-          toolbarHeight: 200,
-          //set your height
-          centerTitle: true,
-          backgroundColor: Colors.white70.withOpacity(0.9),
-          titleTextStyle: const TextStyle(color: Colors.black, fontSize: 30),
-          title: Column(children: [
-            const Text('La météo du numérique'),
-            _searchBar(),
-            SizedBox(
-                width: 450.0, // hardcoded for testing purpose
-                height: 50,
-                child: LayoutBuilder(builder: (context, constraints) {
-                  return ToggleButtons(
-                    constraints: BoxConstraints.expand(
-                        width: constraints.maxWidth / 3.1),
-                    //number 2 is number of toggle buttons
-                    direction: Axis.horizontal,
-                    // color: Colors.black.withOpacity(0.60),
-                    color: Colors.black,
-                    selectedColor: mColor,
-                    selectedBorderColor: mColor0,
-                    fillColor: mColor1.withOpacity(0.08),
-                    splashColor: Colors.grey.withOpacity(0.12),
-                    hoverColor: const Color(0xFF6200EE).withOpacity(0.04),
-                    borderRadius: BorderRadius.circular(4.0),
-                    // constraints: BoxConstraints(minHeight: 36.0),
-                    isSelected: isSelected,
-                    onPressed: (index) {
-                      // Respond to button selection
-                      setState(() {
-                        isSelected[0] = false;
-                        isSelected[1] = false;
-                        isSelected[2] = false;
-                        if (index == 0) {
-                          mColor = Colors.green;
-                          mColor0 = Colors.green;
-                          mColor1 = Colors.green;
-                        }
-                        if (index == 1) {
-                          mColor = Colors.blueAccent;
-                          mColor0 = Colors.blueAccent;
-                          mColor1 = Colors.blueAccent;
-                        }
-                        if (index == 2) {
-                          mColor = Colors.redAccent;
-                          mColor0 = Colors.redAccent;
-                          mColor1 = Colors.redAccent;
-                        }
+        titleSpacing: 0,
+        toolbarHeight: 234,
+        backgroundColor: Colors.indigo,
+        // backgroundColor: const Color(0xff222b45),
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 25),
+        title: Column(children: [
+          Container(
+            color: Colors.white,
+            height: 60,
+            width: double.infinity,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // _searchBar(),
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: SizedBox(
+                    height: 44,
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        // width: double.infinity,
+                        // height: 50,
+                        children: [
+                          Image.asset(
+                            'images/logo_academie.jpg',
+                            // fit: BoxFit.fitHeight
+                          ),
+                        ]),
+                  ),
+                ),
 
-                        if (_servicesDisplay.isNotEmpty &&
-                            _servicesDisplay.every((element) =>
-                                element.qualite_de_service_id == index + 1)) {
-                          isSelected = <bool>[false, false, false];
+                // ),
 
-                          _servicesDisplay = _services;
+                Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Météo du numérique',
+                        style: GoogleFonts.aBeeZee(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ]),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: SizedBox(
+                    height: 44,
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        // width: double.infinity,
+                        // height: 50,
+                        children: [
+                          Image.asset(
+                            'images/meteo-icon.png',
+                            // fit: BoxFit.fitHeight
+                          ),
+                        ]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // const Text('La météo du numérique'),
+
+          Padding(
+            padding: EdgeInsets.zero,
+            child: Container(
+              color: const Color(0xff222b45),
+              // color: Colors.indigo,
+              height: 50,
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Text(
+                        'Retrouvez pendant la période de Rentrée la météo en continu des principaux services numériques de l\'académie',
+                        maxLines: 10,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          //     child: Row(
+          //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          //   children: [
+          //     // Image.asset('images/icons8-search-50.png'),
+          //     const Text('La météo du numérique'),
+          //   ],
+          // ),
+
+
+          Container(
+            color: const Color(0xff222b45),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 4.0, left: 15, right: 15),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(right: 8.0),
+                    child: Text("Filtrer", style: TextStyle(
+                        color: Colors.white,
+                      fontSize: 10
+                    )),
+                  ),
+                  // if (toggle == false)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 800),
+                    child: Expanded(
+                      flex: 1,
+                        // width: 450.0, // hardcoded for testing purpose
+                        // height: 50,
+                        child: LayoutBuilder(builder: (context, constraints) {
+                      return ToggleButtons(
+                        constraints: BoxConstraints.expand(
+                            width: constraints.maxWidth / 3.05, height: 40),
+                        //number 2 is number of toggle buttons
+                        direction: Axis.horizontal,
+                        // color: Colors.black.withOpacity(0.60),
+                        color: Colors.white,
+                        selectedColor: mColor,
+                        // selectedBorderColor: mColor0,
+                        selectedBorderColor: Colors.white,
+                        borderColor: Colors.white,
+                        // fillColor: mColor1.withOpacity(0.08),
+                        fillColor: const Color(0xFF3366ff),
+                        splashColor: Colors.grey.withOpacity(0.12),
+                        hoverColor: const Color(0xFF6200EE).withOpacity(0.04),
+                        borderRadius: BorderRadius.circular(30.0),
+                        // constraints: BoxConstraints(minHeight: 36.0),
+                        isSelected: isSelected,
+                        onPressed: (index) {
+                          setState(() => fav3 = false);
+                          setState(() => fav4 = false);
+
+                          // Respond to button selection
+                          setState(() {
+                            isSelected[0] = false;
+                            isSelected[1] = false;
+                            isSelected[2] = false;
+                            if (index == 0) {
+                              mColor = const Color(0xff04dc9a);
+                              mColor0 = const Color(0xff04dc9a);
+                              mColor1 = const Color(0xff04dc9a);
+                            }
+                            if (index == 1) {
+                              mColor = const Color(0xffdd9e51);
+                              mColor0 = const Color(0xffdd9e51);
+                              mColor1 = const Color(0xffdd9e51);
+                            }
+                            if (index == 2) {
+                              mColor = const Color(0xffff3d71);
+                              mColor0 = const Color(0xffff3d71);
+                              mColor1 = const Color(0xffff3d71);
+                            }
+
+                            if (_servicesDisplay.isNotEmpty &&
+                                _servicesDisplay.every((element) =>
+                                    element.qualite_de_service_id ==
+                                    index + 1)) {
+                              isSelected = <bool>[false, false, false];
+                              disableSort = false;
+                              _servicesDisplay = _services;
+                              _servicesDisplay.sort((a, b) => b
+                                  .qualite_de_service_id
+                                  .compareTo(a.qualite_de_service_id));
+                            } else {
+                              _servicesDisplay = filtered(index + 1);
+                              isSelected[index] = !isSelected[index];
+                              disableSort = true;
+                            }
+                            print(disableSort);
+                          });
+                        },
+                        children: icons,
+                      );
+                    })),
+                  ),
+                  // if (toggle==0) const Text('La météo du numérique'),
+                  // _searchBar(),
+                ],
+              ),
+            ),
+          ),
+          Container(
+            color: const Color(0xff222b45),
+            padding: const EdgeInsets.only(right: 15.0, left: 15.0, bottom: 4.0),
+            child: Row(
+              children: [
+                const Text("Trier", style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10
+                )),
+                Spacer(),
+                OutlinedButton(
+                    onPressed: () {
+                      print(disableSort);
+                      if (!disableSort) {
+                        setState(() => fav3 = true);
+                        setState(() => fav4 = false);
+                        if (fav2) {
+                          setState(() => fav2 = false);
+                          _servicesDisplay.sort((a, b) =>
+                              removeDiacritics(a.libelle)
+                                  .compareTo(removeDiacritics(b.libelle)));
+
+                          _servicesDisplay.sort((a, b) => b
+                              .qualite_de_service_id
+                              .compareTo(a.qualite_de_service_id));
                         } else {
-                          _servicesDisplay = filtered(index + 1);
-                          isSelected[index] = !isSelected[index];
+                          setState(() => fav2 = true);
+                          _servicesDisplay.sort((a, b) =>
+                              removeDiacritics(a.libelle)
+                                  .compareTo(removeDiacritics(b.libelle)));
+
+                          _servicesDisplay.sort((a, b) => a
+                              .qualite_de_service_id
+                              .compareTo(b.qualite_de_service_id));
                         }
-                      });
+                      } else {
+                        null;
+                      }
                     },
-                    children: icons,
-                  );
-                })),
-          ])),
+                    style: ButtonStyle(
+                      backgroundColor: MaterialStateProperty.all(
+                        fav3
+                            ? const Color(0xFF3366ff)
+                            : const Color(0xff222b45),
+                      ),
+                      fixedSize: MaterialStateProperty.resolveWith(
+                        (states) => const Size(120.0, 25),
+                      ),
+                      shape: MaterialStateProperty.all(RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(40.0))),
+                      side: MaterialStateProperty.all(BorderSide(
+                        color: disableSort ? Colors.white38 : Colors.white,
+                      )),
+                    ),
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                              fav2
+                                  ? FontAwesomeIcons.arrowDownLong
+                                  : FontAwesomeIcons.arrowUpLong,
+                              size: 20,
+                              color:
+                                  disableSort ? Colors.white38 : Colors.white),
+                          // const Icon(Icons.sunny, color: Color(0xff04dc9a)),
+                          Icon(Icons.sunny,
+                              color:
+                                  disableSort ? Colors.white38 : Colors.white),
+                        ])),
+                Spacer(),
+                OutlinedButton(
+                    onPressed: () {
+                      setState(() => fav3 = false);
+                      setState(() => fav4 = true);
+                      if (fav) {
+                        setState(() => fav = false);
+                        _servicesDisplay.sort((a, b) =>
+                            removeDiacritics(b.libelle)
+                                .compareTo(removeDiacritics(a.libelle)));
+                      } else {
+                        setState(() => fav = true);
+                        _servicesDisplay.sort((a, b) =>
+                            removeDiacritics(a.libelle)
+                                .compareTo(removeDiacritics(b.libelle)));
+                      }
+                    },
+                    style: ButtonStyle(
+                      backgroundColor: MaterialStateProperty.all(
+                        fav4
+                            ? const Color(0xFF3366ff)
+                            : const Color(0xff222b45),
+                      ),
+                      fixedSize: MaterialStateProperty.resolveWith(
+                        (states) => const Size(120.0, 25),
+                      ),
+                      shape: MaterialStateProperty.all(RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(40.0))),
+                      side: MaterialStateProperty.all(const BorderSide(
+                        color: Colors.white,
+                      )),
+                    ),
+                    child: fav
+                        ? Icon(FontAwesomeIcons.arrowDownAZ,
+                            // fontSize: 20,
+                            color: Colors.white)
+                        : const Icon(
+                            FontAwesomeIcons.arrowUpAZ,
+                            color: Colors.white,
+                          )),
+                Spacer(),
+              ],
+            ),
+          ),
+          Container(
+            // decoration: BoxDecoration(border:),
+            color: Colors.indigo,
+
+            height: 20,
+            padding: EdgeInsets.zero,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  lastUpdate != null ? lastUpdateString(lastUpdate!) : "",
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ]),
+      ),
 
 // todo
-      body: Padding(
-        padding: const EdgeInsets.only(top: 1),
+      body: Container(
+        color: const Color(0xff222b45),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 1),
 
-        // child: MasonryGridView.count(
-        //   crossAxisCount: 2,
-        //   mainAxisSpacing: 8,
-        //   crossAxisSpacing: 4,
-        //   itemCount: _servicesDisplay.length,
-        //   itemBuilder: (context, index) {
-        //     return Column(
-        //       crossAxisAlignment: CrossAxisAlignment.center,
-        //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        //       children: [
-        //         Text(
-        //           _servicesDisplay[index].libelle,
-        //           overflow: TextOverflow.ellipsis,
-        //         ),
-        //       ],
-        //     );
-        //   },
-        // ),
+          // child: MasonryGridView.count(
+          //   crossAxisCount: 2,
+          //   mainAxisSpacing: 8,
+          //   crossAxisSpacing: 4,
+          //   itemCount: _servicesDisplay.length,
+          //   itemBuilder: (context, index) {
+          //     return Column(
+          //       crossAxisAlignment: CrossAxisAlignment.center,
+          //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          //       children: [
+          //         Text(
+          //           _servicesDisplay[index].libelle,
+          //           overflow: TextOverflow.ellipsis,
+          //         ),
+          //       ],
+          //     );
+          //   },
+          // ),
 
-        child: AlignedGridView.extent(
-          maxCrossAxisExtent: 600,
-          mainAxisSpacing: 10,
-          crossAxisSpacing: 6,
-          itemCount: _servicesDisplay.length,
-          itemBuilder: (context, index) {
-            return MasonryGridTile(
-              service: _servicesDisplay[index],
-            );
-          },
+          child: LiquidPullToRefresh(
+            borderWidth: 1.5,
+            backgroundColor: Colors.white,
+            color: Colors.indigo,
+            // color: const Color(0xff222b45).withOpacity(0.5),
+            height: 80,
+            animSpeedFactor: 3,
+            springAnimationDurationInMilliseconds: 500,
+            showChildOpacityTransition: false,
+            onRefresh: () {
+              return Future.delayed(
+                Duration(seconds: 1),
+                () {
+                  fetchServices().then((value) {
+                    setState(() {
+                      _services.clear();
+                      _services.addAll(value);
+
+                      if (isSelected[0]) {
+                        _servicesDisplay = filtered(1);
+                      } else if (isSelected[1]) {
+                        _servicesDisplay = filtered(2);
+                      } else if (isSelected[2]) {
+                        _servicesDisplay = filtered(3);
+                      } else {
+                        _servicesDisplay = _services;
+                        _servicesDisplay.sort((a, b) => b.qualite_de_service_id
+                            .compareTo(a.qualite_de_service_id));
+                      }
+
+                      lastUpdate = _services
+                          .map((e) => e.lastUpdate)
+                          .reduce((min, e) => e.isAfter(min) ? e : min);
+                    });
+                  });
+
+                  /// adding elements in list after [1 seconds] delay
+                  /// to mimic network call
+                  ///
+                  /// Remember: setState is necessary so that
+                  /// build method will run again otherwise
+                  /// list will not show all elements
+                },
+              );
+            },
+            child: AlignedGridView.extent(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(15),
+              maxCrossAxisExtent: 600,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 6,
+              itemCount: _servicesDisplay.length,
+              itemBuilder: (context, index) {
+                return MasonryGridTile(
+                  service: _servicesDisplay[index],
+                );
+              },
+            ),
+          ),
         ),
       ),
 
@@ -247,92 +610,319 @@ class _HomeState extends State<Home> {
   }
 
   _searchBar() {
-    return Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: TextField(
-        autofocus: false,
-        onChanged: (searchText) {
-          searchText = searchText.toLowerCase();
-          setState(() {
-            _servicesDisplay = _services.where((u) {
-              var lName = u.libelle.toLowerCase();
-              var dName = u.description.toLowerCase();
-              return lName.contains(searchText)
-                  // || dName.contains(searchText)
-                  ;
-            }).toList();
-          });
-        },
-        // controller: _textController,
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(40),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 375),
+            height: 40.0,
+            width: (toggle == false)
+                ? 40.0
+                : MediaQuery.of(context).size.width * 0.8,
+            curve: Curves.easeInOut,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(35.0),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  spreadRadius: -10.0,
+                  blurRadius: 10.0,
+                  offset: Offset(0.0, 10.0),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                // AnimatedPositioned(
+                //   duration: Duration(milliseconds: 375),
+                //   // top: 6.0,
+                //   right: 7.0,
+                //   curve: Curves.easeOut,
+                //   child: AnimatedOpacity(
+                //     opacity: (toggle == 0) ? 0.0 : 1.0,
+                //     duration: Duration(milliseconds: 200),
+                //     child: Container(
+                //       padding: EdgeInsets.all(8.0),
+                //       decoration: BoxDecoration(
+                //         color: Color(0xffF2F3F7),
+                //         borderRadius: BorderRadius.circular(30.0),
+                //       ),
+                //       // child: AnimatedBuilder(
+                //       //   child: Icon(
+                //       //     Icons.mic,
+                //       //     size: 20.0,
+                //       //   ),
+                //       //   builder: (context, widget) {
+                //       //     return Transform.rotate(
+                //       //       angle: _con.value * 2.0 * pi,
+                //       //       child: widget,
+                //       //     );
+                //       //   },
+                //       //   animation: _con,
+                //       // ),
+                //     ),
+                //   ),
+                // ),
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 575),
+                  left: (toggle == false) ? 20.0 : 40.0,
+                  // curve: Curves.easeOut,
+                  top: 9.5,
+                  child: AnimatedOpacity(
+                    opacity: (toggle == false) ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 500),
+                    child: Container(
+                      height: 23.0,
+                      width: 400.0,
+                      child: TextField(
+                        controller: _textEditingController,
+                        cursorRadius: const Radius.circular(10.0),
+                        cursorWidth: 2.0,
+                        cursorColor: Colors.black,
+                        decoration: InputDecoration(
+                          floatingLabelBehavior: FloatingLabelBehavior.never,
+                          labelText: 'Recherchez une application',
+                          labelStyle: const TextStyle(
+                            color: Color(0xff5B5B5B),
+                            fontSize: 18.0,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          alignLabelWithHint: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(30.0),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Material(
+                  // color: Colors.red,
+                  shadowColor: Colors.indigo.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(30.0),
+                  child: IconButton(
+                    // hoverColor: Colors.indigo.withOpacity(0.2),
+
+                    splashRadius: 30.0,
+                    // splashColor: Colors.red,
+                    icon: const Icon(
+                      Icons.search,
+                      color: Colors.black,
+                      size: 25.0,
+                    ),
+                    onPressed: () {
+                      setState(
+                        () {
+                          if (toggle == false) {
+                            _con.reverse();
+                            isSelected = <bool>[false, false, false];
+
+                            _servicesDisplay = _services;
+                            toggle = true;
+                          } else {
+                            _textEditingController.clear();
+                            _con.forward();
+                            toggle = false;
+                          }
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
-          prefixIcon: const Icon(Icons.search),
-          hintText: 'Recherchez une application',
         ),
-      ),
+      ],
     );
+    // return Padding(
+    //   padding: const EdgeInsets.all(12.0),
+    //   child: Container(
+    //     decoration: BoxDecoration(
+    //       color: Colors.white.withOpacity(0.4),
+    //       borderRadius:  BorderRadius.circular(32),
+    //     ),
+    //     child: TextField(
+    //       autofocus: false,
+    //       onChanged: (searchText) {
+    //         searchText = searchText.toLowerCase();
+    //         setState(() {
+    //           _servicesDisplay = _services.where((u) {
+    //             var lName = u.libelle.toLowerCase();
+    //             var dName = u.description.toLowerCase();
+    //             return lName.contains(searchText)
+    //                 // || dName.contains(searchText)
+    //                 ;
+    //           }).toList();
+    //         });
+    //       },
+    //       // controller: _textController,
+    //       decoration: const InputDecoration(
+    //
+    //         iconColor: Colors.white,
+    //
+    //         // enabledBorder: OutlineInputBorder(
+    //         //   borderRadius: BorderRadius.circular(40),
+    //         //   borderSide: const BorderSide(color: Colors.white),
+    //         // ),
+    //         // focusedBorder: OutlineInputBorder(
+    //         //   borderRadius: BorderRadius.circular(40),
+    //         //   borderSide: const BorderSide(color: Color(0xFF3366ff)),
+    //         // ),
+    //         // errorBorder: OutlineInputBorder(
+    //         //     borderRadius: BorderRadius.circular(40),
+    //         //     borderSide: const BorderSide(color: Colors.red)),
+    //         filled: true,
+    //         // fillColor: Colors.white.withOpacity(0.3),
+    //         // fillColor: const Color(0xff222b45).withOpacity(0.1),
+    //
+    //         border: InputBorder.none,
+    //         // border: OutlineInputBorder(
+    //         //     borderRadius: BorderRadius.circular(40),
+    //         //     borderSide: const BorderSide(color: Colors.white)),
+    //
+    //         prefixIcon: Icon(Icons.search, color: Colors.white),
+    //         hintText: ('Recherchez une application'),
+    //         hintStyle: TextStyle(fontSize: 18.0, color: Colors.white),
+    //       ),
+    //     ),
+    //   ),
+    // );
   }
+
+  void onPressed() {}
 }
 
 class MasonryGridTile extends StatelessWidget {
   final Service service;
+
   const MasonryGridTile({Key? key, required this.service}) : super(key: key);
+
+  static const List<Widget> icons = <Widget>[
+    Icon(
+      Icons.sunny,
+      color: Color(0xff04dc9a),
+      size: 17,
+    ),
+    Icon(CupertinoIcons.umbrella_fill, color: Color(0xffdd9e51), size: 17),
+    Icon(Icons.flash_on, color: Color(0xffff3d71), size: 17),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 450,
       decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10.0), color: Colors.white),
+        gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: const [
+              0.02,
+              0.02
+            ],
+            colors: [
+              serviceColor(service.qualite_de_service_id),
+              Colors.white
+            ]),
+        borderRadius: BorderRadius.circular(4.0),
+        color: Colors.white,
+        // border: Border(
+        //   top: BorderSide(
+        //     width: 4.0,
+        //     color: serviceColor(service.qualite_de_service_id),
+        //   ),
+        // ),
+        //   border: Border.all(
+        //     color: serviceColor(service.qualite_de_service_id),
+        //     width: 3,
+        //   ),
+      ),
+      // padding: const EdgeInsets.only(top: 10),
+      width: 450,
+      // child: Column(
+      //   crossAxisAlignment: CrossAxisAlignment.start,
+      //   children: [
+      // ClipRRect(
+      //   borderRadius: const BorderRadius.only(
+      //     topLeft: Radius.circular(10.0),
+      //     topRight: Radius.circular(10.0),
+      //   ),
+      //   child: Image(
+      //     image: AssetImage(image),
+      //   ),
+      // ),
+      // Padding(
+      //   padding: const EdgeInsets.only(bottom: 5),
+      //   child:
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ClipRRect(
-          //   borderRadius: const BorderRadius.only(
-          //     topLeft: Radius.circular(10.0),
-          //     topRight: Radius.circular(10.0),
-          //   ),
-          //   child: Image(
-          //     image: AssetImage(image),
-          //   ),
+          // Container(
+          //   color: serviceColor(service.qualite_de_service_id),
+          //   height: 4.0,
           // ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.only(
+                bottom: 5.0, left: 15, right: 15, top: 15),
+            child: Stack(children: [
+              Text(
+                service.libelle,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                    color: Color.fromRGBO(74, 74, 74, 1)),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  icons[service.qualite_de_service_id - 1]
+                  // Icon(Icons.ac_unit, size: 15),
+                ],
+              )
+            ]),
+          ),
+          // const Divider(
+          //   thickness: 1.0,
+          //   // color: Colors.white,
+          // ),
+          Container(
+            color: serviceColor(service.qualite_de_service_id),
+            height: 25,
+            width: double.infinity,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "Name",
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 17,
-                          color: Color.fromRGBO(74, 74, 74, 1)),
-                    ),
-                    IconButton(
-                        onPressed: () {},
-                        icon: const Icon(
-                          Icons.download,
-                          color: Colors.teal,
-                        ))
-                  ],
+                Text(
+                  service.qualite_de_service,
+                  style: const TextStyle(color: Colors.white),
                 ),
-                Html(
-                  data : markdownToHtml(service.description)
-
-
-                )
               ],
             ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10.0),
+            child: Html(data: markdownToHtml(service.description)),
           )
         ],
       ),
+      // )
+      //   ],
+      // ),
     );
+  }
+
+  serviceColor(int qualiteDeServiceId) {
+    switch (qualiteDeServiceId) {
+      case 1:
+        return const Color(0xff04dc9a);
+      case 2:
+        return const Color(0xffdd9e51);
+      case 3:
+        return const Color(0xffff3d71);
+    }
   }
 }

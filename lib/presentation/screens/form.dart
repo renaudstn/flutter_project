@@ -28,10 +28,10 @@ class _AddFormState extends State<AddForm> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: Text("New Quote"),
+          title: const Text("New Quote"),
         ),
         body: Container(
-          padding: EdgeInsets.all(10),
+          padding: const EdgeInsets.all(10),
           child: Column(children: [
             TextField(
               controller: quoteController,
@@ -57,7 +57,7 @@ class _AddFormState extends State<AddForm> {
 
                   var responseData = json.decode(response.body);
                 },
-                child: Text("Add Quote"))
+                child: const Text("Add Quote"))
           ]),
         ));
   }

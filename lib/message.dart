@@ -21,6 +21,8 @@ class MessageArguments {
 
 /// Displays information about a [RemoteMessage].
 class MessageView extends StatelessWidget {
+  const MessageView({super.key});
+
   /// A single data row.
   Widget row(String title, String? value) {
     return Padding(

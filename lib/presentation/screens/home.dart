@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -11,8 +10,6 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/adapters.dart';
-import 'package:http/http.dart' as http;
-import 'package:intl/date_symbol_data_custom.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
@@ -77,7 +74,7 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
             removeDiacritics(a.libelle).compareTo(removeDiacritics(b.libelle)));
 
         _servicesDisplay.sort((a, b) =>
-            b.qualite_de_service_id.compareTo(a.qualite_de_service_id));
+            b.qualiteDeServiceId.compareTo(a.qualiteDeServiceId));
         //todo
 
         lastUpdate = _services
@@ -112,34 +109,16 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
     }
   }
 
-  Future<void> fetchservices() async {
-    String url = "https://qt.toutatice.fr/strapi/api/services?populate=*";
-    // String url = "https://www.toutatice.fr/strapi/services";
-    // String url = "$hostname/api/services";
-    // String url = "http://127.0.0.1:1337/api/services";
-    // String url = "http://172.29.222.125:1337/api/services";
-    // String url = "http://10.0.2.2:1337/api/services";
-    Map<String, String> headers = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
-    var response = await http.get(Uri.parse(url), headers: headers);
-    var responseData = json.decode(response.body);
-    setState(() {
-      services = responseData;
-    });
-  }
-
   String lastUpdateString(DateTime lastUpdate) {
     String form = DateFormat("dd MMMM yyyy", "fr_FR").format(lastUpdate);
     String hour =
-        "${DateFormat("h").format(lastUpdate)}h${DateFormat("mm").format(lastUpdate)}";
+        "${DateFormat("H").format(lastUpdate.add(const Duration(hours: 2)))}h${DateFormat("mm").format(lastUpdate)}";
     return "Dernière mise à jour le $form à $hour";
   }
 
   List<Service> filtered(int value) {
     return _services
-        .where((service) => service.qualite_de_service_id == value)
+        .where((service) => service.qualiteDeServiceId == value)
         .toList();
   }
 
@@ -162,6 +141,17 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
   late List<int> extents;
   int crossAxisCount = 4;
   int columnsCount = 2;
+
+  final ScrollController _controller = ScrollController();
+
+// This is what you're looking for!
+  void _scrollUp() {
+    _controller.animateTo(
+      0.0,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -200,8 +190,6 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                         ]),
                   ),
                 ),
-
-                // ),
 
                 Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -269,94 +257,92 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
           //   ],
           // ),
 
-
           Container(
             color: const Color(0xff222b45),
             child: Padding(
               padding: const EdgeInsets.only(bottom: 4.0, left: 15, right: 15),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-
                 children: [
                   const Padding(
                     padding: EdgeInsets.only(right: 8.0),
-                    child: Text("Filtrer", style: TextStyle(
-                        color: Colors.white,
-                      fontSize: 10
-                    )),
+                    child: Text("Filtrer",
+                        style: TextStyle(color: Colors.white, fontSize: 10)),
                   ),
                   // if (toggle == false)
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 800),
                     child: Expanded(
-                      flex: 1,
+                        flex: 1,
                         // width: 450.0, // hardcoded for testing purpose
                         // height: 50,
                         child: LayoutBuilder(builder: (context, constraints) {
-                      return ToggleButtons(
-                        constraints: BoxConstraints.expand(
-                            width: constraints.maxWidth / 3.05, height: 40),
-                        //number 2 is number of toggle buttons
-                        direction: Axis.horizontal,
-                        // color: Colors.black.withOpacity(0.60),
-                        color: Colors.white,
-                        selectedColor: mColor,
-                        // selectedBorderColor: mColor0,
-                        selectedBorderColor: Colors.white,
-                        borderColor: Colors.white,
-                        // fillColor: mColor1.withOpacity(0.08),
-                        fillColor: const Color(0xFF3366ff),
-                        splashColor: Colors.grey.withOpacity(0.12),
-                        hoverColor: const Color(0xFF6200EE).withOpacity(0.04),
-                        borderRadius: BorderRadius.circular(30.0),
-                        // constraints: BoxConstraints(minHeight: 36.0),
-                        isSelected: isSelected,
-                        onPressed: (index) {
-                          setState(() => fav3 = false);
-                          setState(() => fav4 = false);
+                          return ToggleButtons(
+                            constraints: BoxConstraints.expand(
+                                width: constraints.maxWidth / 3.05, height: 40),
+                            //number 2 is number of toggle buttons
+                            direction: Axis.horizontal,
+                            // color: Colors.black.withOpacity(0.60),
+                            color: Colors.white,
+                            selectedColor: mColor,
+                            // selectedBorderColor: mColor0,
+                            selectedBorderColor: Colors.white,
+                            borderColor: Colors.white,
+                            // fillColor: mColor1.withOpacity(0.08),
+                            fillColor: const Color(0xFF3366ff),
+                            splashColor: Colors.grey.withOpacity(0.12),
+                            hoverColor:
+                                const Color(0xFF6200EE).withOpacity(0.04),
+                            borderRadius: BorderRadius.circular(30.0),
+                            // constraints: BoxConstraints(minHeight: 36.0),
+                            isSelected: isSelected,
+                            onPressed: (index) {
+                              setState(() => fav3 = false);
+                              setState(() => fav4 = false);
 
-                          // Respond to button selection
-                          setState(() {
-                            isSelected[0] = false;
-                            isSelected[1] = false;
-                            isSelected[2] = false;
-                            if (index == 0) {
-                              mColor = const Color(0xff04dc9a);
-                              mColor0 = const Color(0xff04dc9a);
-                              mColor1 = const Color(0xff04dc9a);
-                            }
-                            if (index == 1) {
-                              mColor = const Color(0xffdd9e51);
-                              mColor0 = const Color(0xffdd9e51);
-                              mColor1 = const Color(0xffdd9e51);
-                            }
-                            if (index == 2) {
-                              mColor = const Color(0xffff3d71);
-                              mColor0 = const Color(0xffff3d71);
-                              mColor1 = const Color(0xffff3d71);
-                            }
+                              // Respond to button selection
+                              setState(() {
+                                isSelected[0] = false;
+                                isSelected[1] = false;
+                                isSelected[2] = false;
+                                if (index == 0) {
+                                  mColor = const Color(0xff04dc9a);
+                                  mColor0 = const Color(0xff04dc9a);
+                                  mColor1 = const Color(0xff04dc9a);
+                                }
+                                if (index == 1) {
+                                  mColor = const Color(0xffdd9e51);
+                                  mColor0 = const Color(0xffdd9e51);
+                                  mColor1 = const Color(0xffdd9e51);
+                                }
+                                if (index == 2) {
+                                  mColor = const Color(0xffff3d71);
+                                  mColor0 = const Color(0xffff3d71);
+                                  mColor1 = const Color(0xffff3d71);
+                                }
 
-                            if (_servicesDisplay.isNotEmpty &&
-                                _servicesDisplay.every((element) =>
-                                    element.qualite_de_service_id ==
-                                    index + 1)) {
-                              isSelected = <bool>[false, false, false];
-                              disableSort = false;
-                              _servicesDisplay = _services;
-                              _servicesDisplay.sort((a, b) => b
-                                  .qualite_de_service_id
-                                  .compareTo(a.qualite_de_service_id));
-                            } else {
-                              _servicesDisplay = filtered(index + 1);
-                              isSelected[index] = !isSelected[index];
-                              disableSort = true;
-                            }
-                            print(disableSort);
-                          });
-                        },
-                        children: icons,
-                      );
-                    })),
+                                if (_servicesDisplay.isNotEmpty &&
+                                    _servicesDisplay.every((element) =>
+                                        element.qualiteDeServiceId ==
+                                        index + 1)) {
+                                  isSelected = <bool>[false, false, false];
+                                  disableSort = false;
+                                  _servicesDisplay = _services;
+                                  _servicesDisplay.sort((a, b) => b
+                                      .qualiteDeServiceId
+                                      .compareTo(a.qualiteDeServiceId));
+                                } else {
+                                  _servicesDisplay = filtered(index + 1);
+                                  isSelected[index] = !isSelected[index];
+                                  disableSort = true;
+                                }
+                                print(disableSort);
+                                _scrollUp();
+                              });
+                            },
+                            children: icons,
+                          );
+                        })),
                   ),
                   // if (toggle==0) const Text('La météo du numérique'),
                   // _searchBar(),
@@ -366,14 +352,13 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
           ),
           Container(
             color: const Color(0xff222b45),
-            padding: const EdgeInsets.only(right: 15.0, left: 15.0, bottom: 4.0),
+            padding:
+                const EdgeInsets.only(right: 15.0, left: 15.0, bottom: 4.0),
             child: Row(
               children: [
-                const Text("Trier", style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10
-                )),
-                Spacer(),
+                const Text("Trier",
+                    style: TextStyle(color: Colors.white, fontSize: 10)),
+                const Spacer(),
                 OutlinedButton(
                     onPressed: () {
                       print(disableSort);
@@ -387,8 +372,8 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                                   .compareTo(removeDiacritics(b.libelle)));
 
                           _servicesDisplay.sort((a, b) => b
-                              .qualite_de_service_id
-                              .compareTo(a.qualite_de_service_id));
+                              .qualiteDeServiceId
+                              .compareTo(a.qualiteDeServiceId));
                         } else {
                           setState(() => fav2 = true);
                           _servicesDisplay.sort((a, b) =>
@@ -396,12 +381,13 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                                   .compareTo(removeDiacritics(b.libelle)));
 
                           _servicesDisplay.sort((a, b) => a
-                              .qualite_de_service_id
-                              .compareTo(b.qualite_de_service_id));
+                              .qualiteDeServiceId
+                              .compareTo(b.qualiteDeServiceId));
                         }
                       } else {
                         null;
                       }
+                      _scrollUp();
                     },
                     style: ButtonStyle(
                       backgroundColor: MaterialStateProperty.all(
@@ -433,7 +419,7 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                               color:
                                   disableSort ? Colors.white38 : Colors.white),
                         ])),
-                Spacer(),
+                const Spacer(),
                 OutlinedButton(
                     onPressed: () {
                       setState(() => fav3 = false);
@@ -449,6 +435,7 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                             removeDiacritics(a.libelle)
                                 .compareTo(removeDiacritics(b.libelle)));
                       }
+                      _scrollUp();
                     },
                     style: ButtonStyle(
                       backgroundColor: MaterialStateProperty.all(
@@ -466,14 +453,14 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                       )),
                     ),
                     child: fav
-                        ? Icon(FontAwesomeIcons.arrowDownAZ,
+                        ? const Icon(FontAwesomeIcons.arrowDownAZ,
                             // fontSize: 20,
                             color: Colors.white)
                         : const Icon(
                             FontAwesomeIcons.arrowUpAZ,
                             color: Colors.white,
                           )),
-                Spacer(),
+                const Spacer(),
               ],
             ),
           ),
@@ -533,7 +520,7 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
             showChildOpacityTransition: false,
             onRefresh: () {
               return Future.delayed(
-                Duration(seconds: 1),
+                const Duration(seconds: 1),
                 () {
                   fetchServices().then((value) {
                     setState(() {
@@ -548,8 +535,8 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                         _servicesDisplay = filtered(3);
                       } else {
                         _servicesDisplay = _services;
-                        _servicesDisplay.sort((a, b) => b.qualite_de_service_id
-                            .compareTo(a.qualite_de_service_id));
+                        _servicesDisplay.sort((a, b) => b.qualiteDeServiceId
+                            .compareTo(a.qualiteDeServiceId));
                       }
 
                       lastUpdate = _services
@@ -568,6 +555,7 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
               );
             },
             child: AlignedGridView.extent(
+              controller: _controller,
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(15),
               maxCrossAxisExtent: 600,
@@ -674,7 +662,7 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                   child: AnimatedOpacity(
                     opacity: (toggle == false) ? 0.0 : 1.0,
                     duration: const Duration(milliseconds: 500),
-                    child: Container(
+                    child: SizedBox(
                       height: 23.0,
                       width: 400.0,
                       child: TextField(
@@ -824,7 +812,7 @@ class MasonryGridTile extends StatelessWidget {
               0.02
             ],
             colors: [
-              serviceColor(service.qualite_de_service_id),
+              serviceColor(service.qualiteDeServiceId),
               Colors.white
             ]),
         borderRadius: BorderRadius.circular(4.0),
@@ -878,7 +866,7 @@ class MasonryGridTile extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  icons[service.qualite_de_service_id - 1]
+                  icons[service.qualiteDeServiceId - 1]
                   // Icon(Icons.ac_unit, size: 15),
                 ],
               )
@@ -889,7 +877,7 @@ class MasonryGridTile extends StatelessWidget {
           //   // color: Colors.white,
           // ),
           Container(
-            color: serviceColor(service.qualite_de_service_id),
+            color: serviceColor(service.qualiteDeServiceId),
             height: 25,
             width: double.infinity,
             child: Row(
@@ -897,7 +885,7 @@ class MasonryGridTile extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  service.qualite_de_service,
+                  service.qualiteDeService,
                   style: const TextStyle(color: Colors.white),
                 ),
               ],

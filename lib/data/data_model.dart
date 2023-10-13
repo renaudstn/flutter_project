@@ -1,4 +1,4 @@
-class Service {
+class Service{
   late String id;
   late String libelle;
   late String description;

@@ -14,8 +14,6 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 import 'package:liquid_pull_to_refresh/liquid_pull_to_refresh.dart';
 import 'package:markdown/markdown.dart' hide Text;
-
-// import 'package:markdown/markdown.dart';
 import 'package:meteo_du_numerique/domain/repository.dart';
 
 import '../../data/data_model.dart';
@@ -70,12 +68,9 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
         // _servicesDisplay = filtered;
         _servicesDisplay = _services;
 
-        _servicesDisplay.sort((a, b) =>
-            removeDiacritics(a.libelle).compareTo(removeDiacritics(b.libelle)));
+        _servicesDisplay = sortAll(false);
 
-        _servicesDisplay.sort((a, b) =>
-            b.qualiteDeServiceId.compareTo(a.qualiteDeServiceId));
-        //todo
+        // todo
 
         lastUpdate = _services
             .map((e) => e.lastUpdate)
@@ -117,9 +112,36 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
   }
 
   List<Service> filtered(int value) {
-    return _services
+    var filtered = _services
         .where((service) => service.qualiteDeServiceId == value)
         .toList();
+    filtered.sort((a, b) => removeDiacritics(a.libelle.toLowerCase())
+        .compareTo(removeDiacritics(b.libelle.toLowerCase())));
+    return filtered;
+  }
+
+  List<Service> sortAll(bool inverse) {
+    var critic1 =
+        _services.where((service) => service.qualiteDeServiceId == 1).toList();
+    critic1.sort((a, b) => removeDiacritics(a.libelle.toLowerCase())
+        .compareTo(removeDiacritics(b.libelle.toLowerCase())));
+    var critic2 =
+        _services.where((service) => service.qualiteDeServiceId == 2).toList();
+    critic2.sort((a, b) => removeDiacritics(a.libelle.toLowerCase())
+        .compareTo(removeDiacritics(b.libelle.toLowerCase())));
+    var critic3 =
+        _services.where((service) => service.qualiteDeServiceId == 3).toList();
+    critic3.sort((a, b) => removeDiacritics(a.libelle.toLowerCase())
+        .compareTo(removeDiacritics(b.libelle.toLowerCase())));
+    if (inverse) {
+      critic1.addAll(critic2);
+      critic1.addAll(critic3);
+      return critic1;
+    } else {
+      critic3.addAll(critic2);
+      critic3.addAll(critic1);
+      return critic3;
+    }
   }
 
   // DateTime lastUpdate = _services.reduce((value, element) => max(element.lastUpdate));
@@ -129,8 +151,6 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
     Icon(CupertinoIcons.umbrella_fill, color: Color(0xffdd9e51)),
     Icon(Icons.flash_on, color: Color(0xffff3d71)),
   ];
-
-  final List<bool> _selectedState = <bool>[false, false, true];
 
   Color mColor = const Color(0xFF6200EE),
       mColor0 = const Color(0xFF6200EE),
@@ -155,8 +175,6 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
@@ -195,12 +213,27 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        'Météo du numérique',
-                        style: GoogleFonts.aBeeZee(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _servicesDisplay = sortAll(false);
+                            isSelected = <bool>[false, false, false];
+                            disableSort = false;
+                            fav = false;
+                            fav2 = false;
+                            fav3 = false;
+                            fav4 = false;
+                          });
+
+                          _scrollUp();
+                        },
+                        child: Text(
+                          'Météo du numérique',
+                          style: GoogleFonts.aBeeZee(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
                         ),
                       ),
                     ]),
@@ -258,209 +291,271 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
           // ),
 
           Container(
+            width: MediaQuery.of(context).size.width,
             color: const Color(0xff222b45),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 4.0, left: 15, right: 15),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(right: 8.0),
-                    child: Text("Filtrer",
-                        style: TextStyle(color: Colors.white, fontSize: 10)),
-                  ),
-                  // if (toggle == false)
-                  AnimatedContainer(
+            padding:
+                const EdgeInsets.only(right: 15.0, left: 15.0, bottom: 4.0),
+            child: Stack(
+              alignment: Alignment.centerLeft,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(right: 8.0),
+                  child: Text("Filtrer",
+                      style: TextStyle(color: Colors.white, fontSize: 10)),
+                ),
+                // if (toggle == false)
+                Padding(
+                  padding: const EdgeInsets.only(left: 35.0),
+                  child: AnimatedContainer(
                     duration: const Duration(milliseconds: 800),
-                    child: Expanded(
-                        flex: 1,
-                        // width: 450.0, // hardcoded for testing purpose
-                        // height: 50,
-                        child: LayoutBuilder(builder: (context, constraints) {
-                          return ToggleButtons(
-                            constraints: BoxConstraints.expand(
-                                width: constraints.maxWidth / 3.05, height: 40),
-                            //number 2 is number of toggle buttons
-                            direction: Axis.horizontal,
-                            // color: Colors.black.withOpacity(0.60),
-                            color: Colors.white,
-                            selectedColor: mColor,
-                            // selectedBorderColor: mColor0,
-                            selectedBorderColor: Colors.white,
-                            borderColor: Colors.white,
-                            // fillColor: mColor1.withOpacity(0.08),
-                            fillColor: const Color(0xFF3366ff),
-                            splashColor: Colors.grey.withOpacity(0.12),
-                            hoverColor:
-                                const Color(0xFF6200EE).withOpacity(0.04),
-                            borderRadius: BorderRadius.circular(30.0),
-                            // constraints: BoxConstraints(minHeight: 36.0),
-                            isSelected: isSelected,
-                            onPressed: (index) {
-                              setState(() => fav3 = false);
-                              setState(() => fav4 = false);
+                    child: LayoutBuilder(builder: (context, constraints) {
+                      return ToggleButtons(
+                        constraints: BoxConstraints.expand(
+                            width: constraints.maxWidth / 3.05, height: 38),
+                        //number 2 is number of toggle buttons
+                        direction: Axis.horizontal,
+                        // color: Colors.black.withOpacity(0.60),
+                        color: Colors.white,
+                        selectedColor: mColor,
+                        // selectedBorderColor: mColor0,
+                        selectedBorderColor: Colors.white,
+                        borderColor: Colors.white,
+                        // fillColor: mColor1.withOpacity(0.08),
+                        fillColor: const Color(0xFF3366ff),
+                        splashColor: Colors.grey.withOpacity(0.12),
+                        hoverColor: const Color(0xFF6200EE).withOpacity(0.04),
+                        borderRadius: BorderRadius.circular(30.0),
+                        // constraints: BoxConstraints(minHeight: 36.0),
+                        isSelected: isSelected,
+                        onPressed: (index) {
+                          setState(() => fav3 = false);
+                          setState(() => fav4 = false);
 
-                              // Respond to button selection
-                              setState(() {
-                                isSelected[0] = false;
-                                isSelected[1] = false;
-                                isSelected[2] = false;
-                                if (index == 0) {
-                                  mColor = const Color(0xff04dc9a);
-                                  mColor0 = const Color(0xff04dc9a);
-                                  mColor1 = const Color(0xff04dc9a);
-                                }
-                                if (index == 1) {
-                                  mColor = const Color(0xffdd9e51);
-                                  mColor0 = const Color(0xffdd9e51);
-                                  mColor1 = const Color(0xffdd9e51);
-                                }
-                                if (index == 2) {
-                                  mColor = const Color(0xffff3d71);
-                                  mColor0 = const Color(0xffff3d71);
-                                  mColor1 = const Color(0xffff3d71);
-                                }
+                          // Respond to button selection
+                          setState(() {
+                            isSelected[0] = false;
+                            isSelected[1] = false;
+                            isSelected[2] = false;
+                            if (index == 0) {
+                              mColor = const Color(0xff04dc9a);
+                              mColor0 = const Color(0xff04dc9a);
+                              mColor1 = const Color(0xff04dc9a);
+                            }
+                            if (index == 1) {
+                              mColor = const Color(0xffdd9e51);
+                              mColor0 = const Color(0xffdd9e51);
+                              mColor1 = const Color(0xffdd9e51);
+                            }
+                            if (index == 2) {
+                              mColor = const Color(0xffff3d71);
+                              mColor0 = const Color(0xffff3d71);
+                              mColor1 = const Color(0xffff3d71);
+                            }
 
-                                if (_servicesDisplay.isNotEmpty &&
-                                    _servicesDisplay.every((element) =>
-                                        element.qualiteDeServiceId ==
-                                        index + 1)) {
-                                  isSelected = <bool>[false, false, false];
-                                  disableSort = false;
-                                  _servicesDisplay = _services;
-                                  _servicesDisplay.sort((a, b) => b
-                                      .qualiteDeServiceId
-                                      .compareTo(a.qualiteDeServiceId));
-                                } else {
-                                  _servicesDisplay = filtered(index + 1);
-                                  isSelected[index] = !isSelected[index];
-                                  disableSort = true;
-                                }
-                                print(disableSort);
-                                _scrollUp();
-                              });
-                            },
-                            children: icons,
-                          );
-                        })),
+                            if (_servicesDisplay.isNotEmpty &&
+                                _servicesDisplay.every((element) =>
+                                    element.qualiteDeServiceId == index + 1)) {
+                              isSelected = <bool>[false, false, false];
+                              disableSort = false;
+                              _servicesDisplay = sortAll(false);
+                            } else {
+                              var begin = _servicesDisplay.isEmpty;
+
+                              isSelected[index] = !isSelected[index];
+
+                              _servicesDisplay = filtered(index + 1);
+                              if (begin && _servicesDisplay.isEmpty) {
+                                isSelected = <bool>[false, false, false];
+                                disableSort = false;
+                                _servicesDisplay = sortAll(false);
+                              } else {
+                                disableSort = true;
+                              }
+                            }
+
+                            _scrollUp();
+                          });
+                        },
+                        children: icons,
+                      );
+                    }),
                   ),
-                  // if (toggle==0) const Text('La météo du numérique'),
-                  // _searchBar(),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           Container(
             color: const Color(0xff222b45),
             padding:
                 const EdgeInsets.only(right: 15.0, left: 15.0, bottom: 4.0),
-            child: Row(
+            child: Stack(
+              alignment: Alignment.centerLeft,
               children: [
-                const Text("Trier",
-                    style: TextStyle(color: Colors.white, fontSize: 10)),
-                const Spacer(),
-                OutlinedButton(
-                    onPressed: () {
-                      print(disableSort);
-                      if (!disableSort) {
-                        setState(() => fav3 = true);
-                        setState(() => fav4 = false);
-                        if (fav2) {
-                          setState(() => fav2 = false);
-                          _servicesDisplay.sort((a, b) =>
-                              removeDiacritics(a.libelle)
-                                  .compareTo(removeDiacritics(b.libelle)));
+                const Padding(
+                  padding: EdgeInsets.only(right: 8.0),
+                  child: Text("Trier",
+                      style: TextStyle(color: Colors.white, fontSize: 10)),
+                ),
+                // const Spacer(),
+                Padding(
+                  padding: const EdgeInsets.only(left: 35.0),
+                  child: Row(
+                    children: [
+                      OutlinedButton(
+                          onPressed: () {
+                            if (!disableSort) {
+                              setState(() => fav4 = false);
+                              setState(() => fav = false);
+                              if (fav2) {
+                                setState(() => fav2 = false);
 
-                          _servicesDisplay.sort((a, b) => b
-                              .qualiteDeServiceId
-                              .compareTo(a.qualiteDeServiceId));
-                        } else {
-                          setState(() => fav2 = true);
-                          _servicesDisplay.sort((a, b) =>
-                              removeDiacritics(a.libelle)
-                                  .compareTo(removeDiacritics(b.libelle)));
+                                _servicesDisplay = sortAll(false);
+                              } else {
+                                if (!fav3) {
+                                  _servicesDisplay = sortAll(false);
+                                } else {
+                                  setState(() => fav2 = true);
+                                  _servicesDisplay = sortAll(true);
+                                }
+                              }
+                              setState(() => fav3 = true);
+                            } else {
+                              null;
+                            }
+                            _scrollUp();
+                          },
+                          style: ButtonStyle(
+                            backgroundColor: MaterialStateProperty.all(
+                              fav3
+                                  ? const Color(0xFF3366ff)
+                                  : const Color(0xff222b45),
+                            ),
+                            minimumSize: MaterialStateProperty.all(
+                                const Size(110.0, 32.0)),
+                            // maximumSize: MaterialStateProperty.all(const Size(120.0,32.0)),
+                            shape: MaterialStateProperty.all(
+                                RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(40.0))),
+                            side: MaterialStateProperty.all(BorderSide(
+                              color:
+                                  disableSort ? Colors.white38 : Colors.white,
+                            )),
+                          ),
+                          child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                    fav2
+                                        ? FontAwesomeIcons.arrowDownLong
+                                        : FontAwesomeIcons.arrowUpLong,
+                                    size: 20,
+                                    color: disableSort
+                                        ? Colors.white38
+                                        : Colors.white),
+                                // const Icon(Icons.sunny, color: Color(0xff04dc9a)),
+                                Icon(Icons.sunny,
+                                    color: disableSort
+                                        ? Colors.white38
+                                        : Colors.white),
+                              ])),
+                      const Spacer(),
+                      OutlinedButton(
+                          onPressed: () {
+                            setState(() => fav3 = false);
+                            setState(() => fav2 = false);
 
-                          _servicesDisplay.sort((a, b) => a
-                              .qualiteDeServiceId
-                              .compareTo(b.qualiteDeServiceId));
-                        }
-                      } else {
-                        null;
-                      }
-                      _scrollUp();
-                    },
-                    style: ButtonStyle(
-                      backgroundColor: MaterialStateProperty.all(
-                        fav3
-                            ? const Color(0xFF3366ff)
-                            : const Color(0xff222b45),
-                      ),
-                      fixedSize: MaterialStateProperty.resolveWith(
-                        (states) => const Size(120.0, 25),
-                      ),
-                      shape: MaterialStateProperty.all(RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(40.0))),
-                      side: MaterialStateProperty.all(BorderSide(
-                        color: disableSort ? Colors.white38 : Colors.white,
-                      )),
-                    ),
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                              fav2
-                                  ? FontAwesomeIcons.arrowDownLong
-                                  : FontAwesomeIcons.arrowUpLong,
-                              size: 20,
-                              color:
-                                  disableSort ? Colors.white38 : Colors.white),
-                          // const Icon(Icons.sunny, color: Color(0xff04dc9a)),
-                          Icon(Icons.sunny,
-                              color:
-                                  disableSort ? Colors.white38 : Colors.white),
-                        ])),
-                const Spacer(),
-                OutlinedButton(
-                    onPressed: () {
-                      setState(() => fav3 = false);
-                      setState(() => fav4 = true);
-                      if (fav) {
-                        setState(() => fav = false);
-                        _servicesDisplay.sort((a, b) =>
-                            removeDiacritics(b.libelle)
-                                .compareTo(removeDiacritics(a.libelle)));
-                      } else {
-                        setState(() => fav = true);
-                        _servicesDisplay.sort((a, b) =>
-                            removeDiacritics(a.libelle)
-                                .compareTo(removeDiacritics(b.libelle)));
-                      }
-                      _scrollUp();
-                    },
-                    style: ButtonStyle(
-                      backgroundColor: MaterialStateProperty.all(
-                        fav4
-                            ? const Color(0xFF3366ff)
-                            : const Color(0xff222b45),
-                      ),
-                      fixedSize: MaterialStateProperty.resolveWith(
-                        (states) => const Size(120.0, 25),
-                      ),
-                      shape: MaterialStateProperty.all(RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(40.0))),
-                      side: MaterialStateProperty.all(const BorderSide(
-                        color: Colors.white,
-                      )),
-                    ),
-                    child: fav
-                        ? const Icon(FontAwesomeIcons.arrowDownAZ,
-                            // fontSize: 20,
-                            color: Colors.white)
-                        : const Icon(
-                            FontAwesomeIcons.arrowUpAZ,
-                            color: Colors.white,
+                            if (fav) {
+                              setState(() => fav = false);
+
+                              _servicesDisplay.sort((a, b) =>
+                                  removeDiacritics(a.libelle.toLowerCase())
+                                      .compareTo(removeDiacritics(
+                                          b.libelle.toLowerCase())));
+                            } else {
+                              if (!fav4) {
+                                _servicesDisplay.sort((a, b) =>
+                                    removeDiacritics(a.libelle.toLowerCase())
+                                        .compareTo(removeDiacritics(
+                                            b.libelle.toLowerCase())));
+                              } else {
+                                setState(() => fav = true);
+                                _servicesDisplay.sort((a, b) =>
+                                    removeDiacritics(b.libelle.toLowerCase())
+                                        .compareTo(removeDiacritics(
+                                            a.libelle.toLowerCase())));
+                              }
+                            }
+                            setState(() => fav4 = true);
+                            _scrollUp();
+                          },
+                          style: ButtonStyle(
+                            alignment: Alignment.center,
+                            backgroundColor: MaterialStateProperty.all(
+                              fav4
+                                  ? const Color(0xFF3366ff)
+                                  : const Color(0xff222b45),
+                            ),
+                            minimumSize: MaterialStateProperty.all(
+                                const Size(110.0, 32.0)),
+                            // maximumSize: MaterialStateProperty.all(const Size(120.0,32.0)),
+                            shape: MaterialStateProperty.all(
+                                RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(40.0))),
+                            side: MaterialStateProperty.all(const BorderSide(
+                              color: Colors.white,
+                            )),
+                          ),
+                          child: fav
+                              ? const Icon(FontAwesomeIcons.arrowUpAZ,
+                                  // fontSize: 20,
+                                  color: Colors.white)
+                              : const Icon(
+                                  FontAwesomeIcons.arrowDownAZ,
+                                  color: Colors.white,
+                                )),
+                      const Spacer(),
+                      OutlinedButton(
+                        onPressed: () {
+                          if (fav3 || fav4) {
+                            setState(() {
+                              fav3 = false;
+                              fav4 = false;
+                              fav = false;
+                              fav2 = false;
+                            });
+
+                            _servicesDisplay = sortAll(false);
+                            if (isSelected.contains(true)) {
+                              print(isSelected.toString());
+                              isSelected.indexOf(true) + 1;
+                              _servicesDisplay =
+                                  filtered(isSelected.indexOf(true) + 1);
+                            }
+
+                            _scrollUp();
+                          }
+                        },
+                        style: ButtonStyle(
+                          backgroundColor: MaterialStateProperty.all(
+                              const Color(0xff222b45)),
+                          minimumSize: MaterialStateProperty.resolveWith(
+                            (states) => const Size(32.0, 32.0),
+                          ),
+                          shape:
+                              MaterialStateProperty.all(const CircleBorder()),
+                          side: MaterialStateProperty.all(BorderSide(
+                            color: fav3 || fav4 ? Colors.white : Colors.white38,
                           )),
-                const Spacer(),
+                        ),
+                        child: Icon(
+                          CupertinoIcons.clear,
+                          color: fav3 || fav4 ? Colors.white : Colors.white38,
+                          size: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -535,8 +630,7 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                         _servicesDisplay = filtered(3);
                       } else {
                         _servicesDisplay = _services;
-                        _servicesDisplay.sort((a, b) => b.qualiteDeServiceId
-                            .compareTo(a.qualiteDeServiceId));
+                        _servicesDisplay = sortAll(false);
                       }
 
                       lastUpdate = _services
@@ -597,6 +691,7 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
     );
   }
 
+  //TODO fonction à garder pour future évolutions
   _searchBar() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
@@ -782,7 +877,9 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
     // );
   }
 
-  void onPressed() {}
+  void onPressed() {
+    print("coucou");
+  }
 }
 
 class MasonryGridTile extends StatelessWidget {
@@ -807,14 +904,8 @@ class MasonryGridTile extends StatelessWidget {
         gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            stops: const [
-              0.02,
-              0.02
-            ],
-            colors: [
-              serviceColor(service.qualiteDeServiceId),
-              Colors.white
-            ]),
+            stops: const [0.02, 0.02],
+            colors: [serviceColor(service.qualiteDeServiceId), Colors.white]),
         borderRadius: BorderRadius.circular(4.0),
         color: Colors.white,
         // border: Border(
